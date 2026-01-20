@@ -92,6 +92,81 @@
             padding: 2rem 1.5rem;
         }
         
+        /* Loading State */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .loading-spinner {
+            text-align: center;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--gray-border);
+            border-top-color: var(--scarlet);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Sync Status */
+        .sync-status {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            background: var(--gray-dark);
+            color: var(--white);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            z-index: 100;
+            transition: opacity 0.3s;
+        }
+        
+        .sync-status.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .sync-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4caf50;
+        }
+        
+        .sync-dot.syncing {
+            background: #ffc107;
+            animation: pulse 1s infinite;
+        }
+        
+        .sync-dot.error {
+            background: #f44336;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
         /* Best Times Section */
         .best-times-section {
             background: var(--white);
@@ -516,6 +591,26 @@
             color: var(--gray-dark);
         }
         
+        /* Refresh button */
+        .refresh-btn {
+            background: none;
+            border: 1px solid var(--gray-border);
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            color: var(--gray-medium);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .refresh-btn:hover {
+            border-color: var(--scarlet);
+            color: var(--scarlet);
+        }
+        
         /* Responsive */
         @media (max-width: 768px) {
             .header-inner {
@@ -541,7 +636,7 @@
     <div id="root"></div>
     
     <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
+        const { useState, useEffect, useMemo, useCallback } = React;
         
         // Meeting configurations
         const MEETINGS = [
@@ -587,44 +682,73 @@
             '8:00 PM'
         ];
         
-        // Storage key
-        const STORAGE_KEY = 'project10_scheduler';
-        
-        // Load data from localStorage
-        const loadData = () => {
-            try {
-                const saved = localStorage.getItem(STORAGE_KEY);
-                if (saved) {
-                    return JSON.parse(saved);
-                }
-            } catch (e) {
-                console.error('Error loading data:', e);
-            }
-            return { votes: {}, participants: [] };
-        };
-        
-        // Save data to localStorage
-        const saveData = (data) => {
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-            } catch (e) {
-                console.error('Error saving data:', e);
-            }
-        };
+        // Storage keys
+        const STORAGE_KEY = 'project10_scheduler_v2';
+        const USER_KEY = 'project10_current_user';
         
         // Generate slot key
         const getSlotKey = (meetingId, date, time) => `${meetingId}|${date}|${time}`;
         
         // Main App Component
         const App = () => {
-            const [currentUser, setCurrentUser] = useState('');
+            const [currentUser, setCurrentUser] = useState(() => {
+                try {
+                    return localStorage.getItem(USER_KEY) || '';
+                } catch (e) {
+                    return '';
+                }
+            });
             const [nameInput, setNameInput] = useState('');
-            const [data, setData] = useState(loadData);
+            const [data, setData] = useState({ votes: {}, participants: [] });
+            const [isLoading, setIsLoading] = useState(true);
+            const [syncStatus, setSyncStatus] = useState('synced'); // 'synced', 'syncing', 'error'
+            const [showSyncStatus, setShowSyncStatus] = useState(false);
             
-            // Save whenever data changes
+            // Load data from cloud storage
+            const loadData = useCallback(async () => {
+                try {
+                    const result = await window.storage.get(STORAGE_KEY, true); // shared = true
+                    if (result && result.value) {
+                        setData(JSON.parse(result.value));
+                    }
+                } catch (e) {
+                    // Key doesn't exist yet or error - use empty state
+                    console.log('No existing data or error loading:', e);
+                }
+                setIsLoading(false);
+            }, []);
+            
+            // Save data to cloud storage
+            const saveData = useCallback(async (newData) => {
+                setSyncStatus('syncing');
+                setShowSyncStatus(true);
+                try {
+                    await window.storage.set(STORAGE_KEY, JSON.stringify(newData), true); // shared = true
+                    setSyncStatus('synced');
+                    setTimeout(() => setShowSyncStatus(false), 2000);
+                } catch (e) {
+                    console.error('Error saving data:', e);
+                    setSyncStatus('error');
+                }
+            }, []);
+            
+            // Initial load
             useEffect(() => {
-                saveData(data);
-            }, [data]);
+                loadData();
+            }, [loadData]);
+            
+            // Save current user to localStorage
+            useEffect(() => {
+                try {
+                    if (currentUser) {
+                        localStorage.setItem(USER_KEY, currentUser);
+                    } else {
+                        localStorage.removeItem(USER_KEY);
+                    }
+                } catch (e) {
+                    // localStorage not available
+                }
+            }, [currentUser]);
             
             // Check if user has voted for a slot
             const hasUserVoted = (meetingId, date, time) => {
@@ -639,7 +763,7 @@
             };
             
             // Toggle vote
-            const toggleVote = (meetingId, date, time) => {
+            const toggleVote = async (meetingId, date, time) => {
                 if (!currentUser) return;
                 
                 const key = getSlotKey(meetingId, date, time);
@@ -658,10 +782,13 @@
                     newParticipants = [...data.participants, currentUser];
                 }
                 
-                setData({
+                const newData = {
                     votes: { ...data.votes, [key]: newVotes },
                     participants: newParticipants
-                });
+                };
+                
+                setData(newData);
+                await saveData(newData);
             };
             
             // Get top times for a meeting
@@ -699,6 +826,26 @@
                 setCurrentUser('');
             };
             
+            // Refresh data
+            const refreshData = async () => {
+                setSyncStatus('syncing');
+                setShowSyncStatus(true);
+                await loadData();
+                setSyncStatus('synced');
+                setTimeout(() => setShowSyncStatus(false), 2000);
+            };
+            
+            if (isLoading) {
+                return (
+                    <div className="loading-overlay">
+                        <div className="loading-spinner">
+                            <div className="spinner"></div>
+                            <div>Loading availability data...</div>
+                        </div>
+                    </div>
+                );
+            }
+            
             return (
                 <div>
                     {/* Header */}
@@ -718,6 +865,9 @@
                             <div className="best-times-header">
                                 <div className="best-times-icon">★</div>
                                 <h2 className="best-times-title">Best Available Times</h2>
+                                <button className="refresh-btn" onClick={refreshData} title="Refresh data">
+                                    ↻ Refresh
+                                </button>
                             </div>
                             <div className="meetings-grid">
                                 {MEETINGS.map(meeting => {
@@ -852,6 +1002,14 @@
                             Questions? Contact <a href="mailto:mark.oleson@chrr.osu.edu">mark.oleson@chrr.osu.edu</a>
                         </p>
                     </footer>
+                    
+                    {/* Sync Status Indicator */}
+                    <div className={`sync-status ${showSyncStatus ? '' : 'hidden'}`}>
+                        <div className={`sync-dot ${syncStatus}`}></div>
+                        {syncStatus === 'syncing' && 'Syncing...'}
+                        {syncStatus === 'synced' && 'Saved'}
+                        {syncStatus === 'error' && 'Sync error'}
+                    </div>
                 </div>
             );
         };

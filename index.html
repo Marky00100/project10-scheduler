@@ -10,11 +10,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">
     
-    <!-- React -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
-    
     <style>
         :root {
             --scarlet: #BB0000;
@@ -591,24 +586,32 @@
             color: var(--gray-dark);
         }
         
-        /* Refresh button */
-        .refresh-btn {
-            background: none;
-            border: 1px solid var(--gray-border);
-            padding: 0.4rem 0.8rem;
-            border-radius: 4px;
-            font-size: 0.85rem;
-            cursor: pointer;
-            color: var(--gray-medium);
-            transition: all 0.2s;
-            display: flex;
+        /* Connection status */
+        .connection-status {
+            display: inline-flex;
             align-items: center;
             gap: 0.5rem;
+            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            margin-left: auto;
         }
         
-        .refresh-btn:hover {
-            border-color: var(--scarlet);
-            color: var(--scarlet);
+        .connection-status.connected {
+            background: var(--success-light);
+            color: var(--success);
+        }
+        
+        .connection-status.disconnected {
+            background: #ffebee;
+            color: #c62828;
+        }
+        
+        .connection-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
         }
         
         /* Responsive */
@@ -633,10 +636,43 @@
     </style>
 </head>
 <body>
-    <div id="root"></div>
+    <div id="root">
+        <div class="loading-overlay">
+            <div class="loading-spinner">
+                <div class="spinner"></div>
+                <div>Connecting to database...</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    
+    <!-- React -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    
+    <script>
+        // Initialize Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyCJDTjkMjHA9ji0e1Eeuqiv6_Zcy0UzS5U",
+            authDomain: "group-10-scheduling.firebaseapp.com",
+            databaseURL: "https://group-10-scheduling-default-rtdb.firebaseio.com",
+            projectId: "group-10-scheduling",
+            storageBucket: "group-10-scheduling.firebasestorage.app",
+            messagingSenderId: "723833249339",
+            appId: "1:723833249339:web:c845b13a8262819e8d461e",
+            measurementId: "G-3Z4GE7QTV9"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+    </script>
     
     <script type="text/babel">
-        const { useState, useEffect, useMemo, useCallback } = React;
+        const { useState, useEffect, useCallback } = React;
         
         // Meeting configurations
         const MEETINGS = [
@@ -682,12 +718,14 @@
             '8:00 PM'
         ];
         
-        // Storage keys
-        const STORAGE_KEY = 'project10_scheduler_v2';
+        // Storage key for local user
         const USER_KEY = 'project10_current_user';
         
-        // Generate slot key
-        const getSlotKey = (meetingId, date, time) => `${meetingId}|${date}|${time}`;
+        // Generate slot key (Firebase-safe - no special characters)
+        const getSlotKey = (meetingId, date, time) => {
+            const safeTime = time.replace(/:/g, '-').replace(/ /g, '');
+            return `${meetingId}_${date}_${safeTime}`;
+        };
         
         // Main App Component
         const App = () => {
@@ -699,43 +737,42 @@
                 }
             });
             const [nameInput, setNameInput] = useState('');
-            const [data, setData] = useState({ votes: {}, participants: [] });
+            const [votes, setVotes] = useState({});
+            const [participants, setParticipants] = useState([]);
             const [isLoading, setIsLoading] = useState(true);
-            const [syncStatus, setSyncStatus] = useState('synced'); // 'synced', 'syncing', 'error'
-            const [showSyncStatus, setShowSyncStatus] = useState(false);
+            const [isConnected, setIsConnected] = useState(false);
             
-            // Load data from cloud storage
-            const loadData = useCallback(async () => {
-                try {
-                    const result = await window.storage.get(STORAGE_KEY, true); // shared = true
-                    if (result && result.value) {
-                        setData(JSON.parse(result.value));
-                    }
-                } catch (e) {
-                    // Key doesn't exist yet or error - use empty state
-                    console.log('No existing data or error loading:', e);
-                }
-                setIsLoading(false);
-            }, []);
-            
-            // Save data to cloud storage
-            const saveData = useCallback(async (newData) => {
-                setSyncStatus('syncing');
-                setShowSyncStatus(true);
-                try {
-                    await window.storage.set(STORAGE_KEY, JSON.stringify(newData), true); // shared = true
-                    setSyncStatus('synced');
-                    setTimeout(() => setShowSyncStatus(false), 2000);
-                } catch (e) {
-                    console.error('Error saving data:', e);
-                    setSyncStatus('error');
-                }
-            }, []);
-            
-            // Initial load
+            // Set up real-time listeners
             useEffect(() => {
-                loadData();
-            }, [loadData]);
+                const votesRef = database.ref('votes');
+                const participantsRef = database.ref('participants');
+                const connectedRef = database.ref('.info/connected');
+                
+                // Listen for connection state
+                connectedRef.on('value', (snap) => {
+                    setIsConnected(snap.val() === true);
+                });
+                
+                // Listen for votes changes
+                votesRef.on('value', (snapshot) => {
+                    const data = snapshot.val() || {};
+                    setVotes(data);
+                    setIsLoading(false);
+                });
+                
+                // Listen for participants changes
+                participantsRef.on('value', (snapshot) => {
+                    const data = snapshot.val() || {};
+                    setParticipants(Object.keys(data));
+                });
+                
+                // Cleanup listeners on unmount
+                return () => {
+                    votesRef.off();
+                    participantsRef.off();
+                    connectedRef.off();
+                };
+            }, []);
             
             // Save current user to localStorage
             useEffect(() => {
@@ -753,13 +790,22 @@
             // Check if user has voted for a slot
             const hasUserVoted = (meetingId, date, time) => {
                 const key = getSlotKey(meetingId, date, time);
-                return data.votes[key]?.includes(currentUser) || false;
+                const slotVotes = votes[key] || {};
+                return Object.values(slotVotes).includes(currentUser);
             };
             
             // Get vote count for a slot
             const getVoteCount = (meetingId, date, time) => {
                 const key = getSlotKey(meetingId, date, time);
-                return data.votes[key]?.length || 0;
+                const slotVotes = votes[key] || {};
+                return Object.keys(slotVotes).length;
+            };
+            
+            // Get voters for a slot
+            const getVoters = (meetingId, date, time) => {
+                const key = getSlotKey(meetingId, date, time);
+                const slotVotes = votes[key] || {};
+                return Object.values(slotVotes);
             };
             
             // Toggle vote
@@ -767,28 +813,25 @@
                 if (!currentUser) return;
                 
                 const key = getSlotKey(meetingId, date, time);
-                const currentVotes = data.votes[key] || [];
+                const slotRef = database.ref(`votes/${key}`);
+                const participantRef = database.ref(`participants/${currentUser.replace(/[.#$[\]]/g, '_')}`);
                 
-                let newVotes;
-                if (currentVotes.includes(currentUser)) {
-                    newVotes = currentVotes.filter(v => v !== currentUser);
+                // Check if user already voted
+                const snapshot = await slotRef.once('value');
+                const slotVotes = snapshot.val() || {};
+                
+                // Find if user already has a vote in this slot
+                const existingVoteKey = Object.keys(slotVotes).find(k => slotVotes[k] === currentUser);
+                
+                if (existingVoteKey) {
+                    // Remove vote
+                    await slotRef.child(existingVoteKey).remove();
                 } else {
-                    newVotes = [...currentVotes, currentUser];
+                    // Add vote
+                    await slotRef.push(currentUser);
+                    // Add to participants
+                    await participantRef.set(true);
                 }
-                
-                // Update participants list
-                let newParticipants = data.participants;
-                if (!data.participants.includes(currentUser)) {
-                    newParticipants = [...data.participants, currentUser];
-                }
-                
-                const newData = {
-                    votes: { ...data.votes, [key]: newVotes },
-                    participants: newParticipants
-                };
-                
-                setData(newData);
-                await saveData(newData);
             };
             
             // Get top times for a meeting
@@ -803,7 +846,7 @@
                                 date: d.label,
                                 time,
                                 count,
-                                voters: data.votes[getSlotKey(meetingId, d.date, time)] || []
+                                voters: getVoters(meetingId, d.date, time)
                             });
                         }
                     });
@@ -826,15 +869,6 @@
                 setCurrentUser('');
             };
             
-            // Refresh data
-            const refreshData = async () => {
-                setSyncStatus('syncing');
-                setShowSyncStatus(true);
-                await loadData();
-                setSyncStatus('synced');
-                setTimeout(() => setShowSyncStatus(false), 2000);
-            };
-            
             if (isLoading) {
                 return (
                     <div className="loading-overlay">
@@ -855,7 +889,13 @@
                                 <div className="header-title">Project 10 Meeting Scheduler</div>
                                 <div className="header-subtitle">SMB-A × Undergraduate Micro-Team Coordination</div>
                             </div>
-                            <div className="osu-wordmark">THE OHIO STATE UNIVERSITY</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                <span className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
+                                    <span className="connection-dot"></span>
+                                    {isConnected ? 'Live' : 'Offline'}
+                                </span>
+                                <div className="osu-wordmark">THE OHIO STATE UNIVERSITY</div>
+                            </div>
                         </div>
                     </header>
                     
@@ -865,9 +905,6 @@
                             <div className="best-times-header">
                                 <div className="best-times-icon">★</div>
                                 <h2 className="best-times-title">Best Available Times</h2>
-                                <button className="refresh-btn" onClick={refreshData} title="Refresh data">
-                                    ↻ Refresh
-                                </button>
                             </div>
                             <div className="meetings-grid">
                                 {MEETINGS.map(meeting => {
@@ -981,12 +1018,12 @@
                         
                         {/* Participants */}
                         <section className="participants-section">
-                            <h2 className="participants-title">Participants ({data.participants.length})</h2>
-                            {data.participants.length > 0 ? (
+                            <h2 className="participants-title">Participants ({participants.length})</h2>
+                            {participants.length > 0 ? (
                                 <div className="participants-list">
-                                    {data.participants.map(p => (
-                                        <span key={p} className={`participant-chip ${p === currentUser ? 'current' : ''}`}>
-                                            {p}
+                                    {participants.map(p => (
+                                        <span key={p} className={`participant-chip ${p === currentUser.replace(/[.#$[\]]/g, '_') ? 'current' : ''}`}>
+                                            {p.replace(/_/g, '.')}
                                         </span>
                                     ))}
                                 </div>
@@ -1002,14 +1039,6 @@
                             Questions? Contact <a href="mailto:mark.oleson@chrr.osu.edu">mark.oleson@chrr.osu.edu</a>
                         </p>
                     </footer>
-                    
-                    {/* Sync Status Indicator */}
-                    <div className={`sync-status ${showSyncStatus ? '' : 'hidden'}`}>
-                        <div className={`sync-dot ${syncStatus}`}></div>
-                        {syncStatus === 'syncing' && 'Syncing...'}
-                        {syncStatus === 'synced' && 'Saved'}
-                        {syncStatus === 'error' && 'Sync error'}
-                    </div>
                 </div>
             );
         };

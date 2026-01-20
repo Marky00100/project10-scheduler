@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project 10 | Meeting Scheduler</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- React -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    
+    <style>
+        :root {
+            --scarlet: #BB0000;
+            --scarlet-dark: #9E0000;
+            --gray-dark: #1a1a1a;
+            --gray-medium: #666666;
+            --gray-light: #f5f5f5;
+            --gray-border: #e0e0e0;
+            --white: #ffffff;
+            --success: #2e7d32;
+            --success-light: #e8f5e9;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--gray-light);
+            color: var(--gray-dark);
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+        
+        /* Header */
+        .header {
+            background: var(--scarlet);
+            color: var(--white);
+            padding: 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        
+        .header-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+        
+        .header-title {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 700;
+            font-size: 1.5rem;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+        }
+        
+        .header-subtitle {
+            font-size: 0.85rem;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+        
+        .osu-wordmark {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 700;
+            font-size: 0.9rem;
+            letter-spacing: 0.1em;
+            opacity: 0.9;
+        }
+        
+        /* Main Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+        
+        /* Best Times Section */
+        .best-times-section {
+            background: var(--white);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            border-left: 4px solid var(--scarlet);
+        }
+        
+        .best-times-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        
+        .best-times-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--scarlet);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--white);
+            font-size: 1rem;
+        }
+        
+        .best-times-title {
+            font-family: 'Oswald', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+        
+        .meetings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .meeting-card {
+            background: var(--gray-light);
+            border-radius: 6px;
+            padding: 1.25rem;
+        }
+        
+        .meeting-card-header {
+            font-family: 'Oswald', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            margin-bottom: 0.75rem;
+            color: var(--gray-dark);
+        }
+        
+        .meeting-card-date {
+            font-size: 0.85rem;
+            color: var(--gray-medium);
+            margin-bottom: 0.5rem;
+        }
+        
+        .top-time {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--gray-border);
+        }
+        
+        .top-time:last-child {
+            border-bottom: none;
+        }
+        
+        .top-time-slot {
+            font-weight: 500;
+        }
+        
+        .top-time-votes {
+            background: var(--success-light);
+            color: var(--success);
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .no-votes-yet {
+            color: var(--gray-medium);
+            font-style: italic;
+            font-size: 0.9rem;
+        }
+        
+        /* Name Entry */
+        .name-section {
+            background: var(--white);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        
+        .name-section-title {
+            font-family: 'Oswald', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            margin-bottom: 1rem;
+        }
+        
+        .name-input-row {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .name-input {
+            flex: 1;
+            min-width: 200px;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--gray-border);
+            border-radius: 6px;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+        
+        .name-input:focus {
+            outline: none;
+            border-color: var(--scarlet);
+        }
+        
+        .name-submit {
+            padding: 0.75rem 1.5rem;
+            background: var(--scarlet);
+            color: var(--white);
+            border: none;
+            border-radius: 6px;
+            font-family: 'Oswald', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .name-submit:hover {
+            background: var(--scarlet-dark);
+        }
+        
+        .name-submit:disabled {
+            background: var(--gray-medium);
+            cursor: not-allowed;
+        }
+        
+        .current-user {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .current-user-label {
+            font-weight: 500;
+        }
+        
+        .current-user-name {
+            background: var(--scarlet);
+            color: var(--white);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+        
+        .change-user-btn {
+            background: none;
+            border: 1px solid var(--gray-medium);
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            color: var(--gray-medium);
+            transition: all 0.2s;
+        }
+        
+        .change-user-btn:hover {
+            border-color: var(--scarlet);
+            color: var(--scarlet);
+        }
+        
+        /* Scheduler Grid */
+        .scheduler-section {
+            background: var(--white);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        
+        .scheduler-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .scheduler-title {
+            font-family: 'Oswald', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+        
+        .scheduler-legend {
+            display: flex;
+            gap: 1.5rem;
+            font-size: 0.85rem;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .legend-swatch {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+        
+        .legend-swatch.available {
+            background: var(--success-light);
+            border: 2px solid var(--success);
+        }
+        
+        .legend-swatch.selected {
+            background: var(--scarlet);
+        }
+        
+        .meeting-section {
+            margin-bottom: 2rem;
+        }
+        
+        .meeting-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .meeting-section-header {
+            font-family: 'Oswald', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            padding-bottom: 0.75rem;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid var(--scarlet);
+        }
+        
+        .meeting-date-range {
+            font-family: 'Source Sans 3', sans-serif;
+            font-weight: 400;
+            font-size: 0.9rem;
+            color: var(--gray-medium);
+            text-transform: none;
+            margin-left: 1rem;
+        }
+        
+        .time-grid {
+            display: grid;
+            grid-template-columns: 100px repeat(5, 1fr);
+            gap: 2px;
+            background: var(--gray-border);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        
+        .grid-header {
+            background: var(--gray-dark);
+            color: var(--white);
+            padding: 0.75rem 0.5rem;
+            font-weight: 600;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+        
+        .grid-header.time-col {
+            background: var(--gray-medium);
+        }
+        
+        .time-label {
+            background: var(--gray-light);
+            padding: 0.5rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .time-slot {
+            background: var(--white);
+            padding: 0.5rem;
+            min-height: 44px;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        
+        .time-slot:hover {
+            background: #fafafa;
+        }
+        
+        .time-slot.selected {
+            background: var(--scarlet);
+        }
+        
+        .time-slot.has-votes {
+            background: var(--success-light);
+        }
+        
+        .time-slot.has-votes.selected {
+            background: var(--scarlet);
+        }
+        
+        .vote-count {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--success);
+        }
+        
+        .time-slot.selected .vote-count {
+            color: var(--white);
+        }
+        
+        .time-slot.disabled {
+            background: #f0f0f0;
+            cursor: not-allowed;
+            color: #ccc;
+        }
+        
+        /* Participants List */
+        .participants-section {
+            background: var(--white);
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        
+        .participants-title {
+            font-family: 'Oswald', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            margin-bottom: 1rem;
+        }
+        
+        .participants-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        
+        .participant-chip {
+            background: var(--gray-light);
+            padding: 0.4rem 0.8rem;
+            border-radius: 16px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        
+        .participant-chip.current {
+            background: var(--scarlet);
+            color: var(--white);
+        }
+        
+        .no-participants {
+            color: var(--gray-medium);
+            font-style: italic;
+        }
+        
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--gray-medium);
+            font-size: 0.85rem;
+        }
+        
+        .footer a {
+            color: var(--scarlet);
+            text-decoration: none;
+        }
+        
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Instructions */
+        .instructions {
+            background: #fff8e1;
+            border-radius: 6px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .instructions strong {
+            color: var(--gray-dark);
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-inner {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .time-grid {
+                font-size: 0.8rem;
+            }
+            
+            .grid-header, .time-label {
+                padding: 0.5rem 0.25rem;
+            }
+            
+            .time-slot {
+                min-height: 36px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+        
+        // Meeting configurations
+        const MEETINGS = [
+            {
+                id: 'feb',
+                name: 'Meeting 1: Data Handoff & Strategy',
+                dateRange: 'Week of Feb 2-6, 2026',
+                dates: [
+                    { date: '2026-02-02', label: 'Mon 2/2' },
+                    { date: '2026-02-03', label: 'Tue 2/3' },
+                    { date: '2026-02-04', label: 'Wed 2/4' },
+                    { date: '2026-02-05', label: 'Thu 2/5' },
+                    { date: '2026-02-06', label: 'Fri 2/6' }
+                ]
+            },
+            {
+                id: 'apr',
+                name: 'Meeting 2: Progress Review',
+                dateRange: 'Week of Apr 6-10, 2026',
+                dates: [
+                    { date: '2026-04-06', label: 'Mon 4/6' },
+                    { date: '2026-04-07', label: 'Tue 4/7' },
+                    { date: '2026-04-08', label: 'Wed 4/8' },
+                    { date: '2026-04-09', label: 'Thu 4/9' },
+                    { date: '2026-04-10', label: 'Fri 4/10' }
+                ]
+            }
+        ];
+        
+        // Time slots (9am - 8pm)
+        const TIME_SLOTS = [
+            '9:00 AM',
+            '10:00 AM',
+            '11:00 AM',
+            '12:00 PM',
+            '1:00 PM',
+            '2:00 PM',
+            '3:00 PM',
+            '4:00 PM',
+            '5:00 PM',
+            '6:00 PM',
+            '7:00 PM',
+            '8:00 PM'
+        ];
+        
+        // Storage key
+        const STORAGE_KEY = 'project10_scheduler';
+        
+        // Load data from localStorage
+        const loadData = () => {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    return JSON.parse(saved);
+                }
+            } catch (e) {
+                console.error('Error loading data:', e);
+            }
+            return { votes: {}, participants: [] };
+        };
+        
+        // Save data to localStorage
+        const saveData = (data) => {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            } catch (e) {
+                console.error('Error saving data:', e);
+            }
+        };
+        
+        // Generate slot key
+        const getSlotKey = (meetingId, date, time) => `${meetingId}|${date}|${time}`;
+        
+        // Main App Component
+        const App = () => {
+            const [currentUser, setCurrentUser] = useState('');
+            const [nameInput, setNameInput] = useState('');
+            const [data, setData] = useState(loadData);
+            
+            // Save whenever data changes
+            useEffect(() => {
+                saveData(data);
+            }, [data]);
+            
+            // Check if user has voted for a slot
+            const hasUserVoted = (meetingId, date, time) => {
+                const key = getSlotKey(meetingId, date, time);
+                return data.votes[key]?.includes(currentUser) || false;
+            };
+            
+            // Get vote count for a slot
+            const getVoteCount = (meetingId, date, time) => {
+                const key = getSlotKey(meetingId, date, time);
+                return data.votes[key]?.length || 0;
+            };
+            
+            // Toggle vote
+            const toggleVote = (meetingId, date, time) => {
+                if (!currentUser) return;
+                
+                const key = getSlotKey(meetingId, date, time);
+                const currentVotes = data.votes[key] || [];
+                
+                let newVotes;
+                if (currentVotes.includes(currentUser)) {
+                    newVotes = currentVotes.filter(v => v !== currentUser);
+                } else {
+                    newVotes = [...currentVotes, currentUser];
+                }
+                
+                // Update participants list
+                let newParticipants = data.participants;
+                if (!data.participants.includes(currentUser)) {
+                    newParticipants = [...data.participants, currentUser];
+                }
+                
+                setData({
+                    votes: { ...data.votes, [key]: newVotes },
+                    participants: newParticipants
+                });
+            };
+            
+            // Get top times for a meeting
+            const getTopTimes = (meetingId) => {
+                const times = [];
+                
+                MEETINGS.find(m => m.id === meetingId)?.dates.forEach(d => {
+                    TIME_SLOTS.forEach(time => {
+                        const count = getVoteCount(meetingId, d.date, time);
+                        if (count > 0) {
+                            times.push({
+                                date: d.label,
+                                time,
+                                count,
+                                voters: data.votes[getSlotKey(meetingId, d.date, time)] || []
+                            });
+                        }
+                    });
+                });
+                
+                return times.sort((a, b) => b.count - a.count).slice(0, 3);
+            };
+            
+            // Handle name submission
+            const handleNameSubmit = (e) => {
+                e.preventDefault();
+                if (nameInput.trim()) {
+                    setCurrentUser(nameInput.trim());
+                    setNameInput('');
+                }
+            };
+            
+            // Clear user
+            const clearUser = () => {
+                setCurrentUser('');
+            };
+            
+            return (
+                <div>
+                    {/* Header */}
+                    <header className="header">
+                        <div className="header-inner">
+                            <div>
+                                <div className="header-title">Project 10 Meeting Scheduler</div>
+                                <div className="header-subtitle">SMB-A × Undergraduate Micro-Team Coordination</div>
+                            </div>
+                            <div className="osu-wordmark">THE OHIO STATE UNIVERSITY</div>
+                        </div>
+                    </header>
+                    
+                    <main className="container">
+                        {/* Best Times Summary */}
+                        <section className="best-times-section">
+                            <div className="best-times-header">
+                                <div className="best-times-icon">★</div>
+                                <h2 className="best-times-title">Best Available Times</h2>
+                            </div>
+                            <div className="meetings-grid">
+                                {MEETINGS.map(meeting => {
+                                    const topTimes = getTopTimes(meeting.id);
+                                    return (
+                                        <div key={meeting.id} className="meeting-card">
+                                            <h3 className="meeting-card-header">{meeting.name}</h3>
+                                            <div className="meeting-card-date">{meeting.dateRange}</div>
+                                            {topTimes.length > 0 ? (
+                                                topTimes.map((t, i) => (
+                                                    <div key={i} className="top-time">
+                                                        <span className="top-time-slot">{t.date} @ {t.time}</span>
+                                                        <span className="top-time-votes">{t.count} available</span>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="no-votes-yet">No availability submitted yet</div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </section>
+                        
+                        {/* Name Entry */}
+                        <section className="name-section">
+                            <h2 className="name-section-title">Your Information</h2>
+                            {currentUser ? (
+                                <div className="current-user">
+                                    <span className="current-user-label">Selecting availability as:</span>
+                                    <span className="current-user-name">{currentUser}</span>
+                                    <button className="change-user-btn" onClick={clearUser}>Change</button>
+                                </div>
+                            ) : (
+                                <form onSubmit={handleNameSubmit} className="name-input-row">
+                                    <input
+                                        type="text"
+                                        className="name-input"
+                                        placeholder="Enter your name (e.g., Mark Oleson)"
+                                        value={nameInput}
+                                        onChange={(e) => setNameInput(e.target.value)}
+                                    />
+                                    <button type="submit" className="name-submit" disabled={!nameInput.trim()}>
+                                        Continue
+                                    </button>
+                                </form>
+                            )}
+                        </section>
+                        
+                        {/* Time Selection */}
+                        <section className="scheduler-section">
+                            <div className="scheduler-header">
+                                <h2 className="scheduler-title">Select Your Availability</h2>
+                                <div className="scheduler-legend">
+                                    <div className="legend-item">
+                                        <div className="legend-swatch selected"></div>
+                                        <span>Your selection</span>
+                                    </div>
+                                    <div className="legend-item">
+                                        <div className="legend-swatch available"></div>
+                                        <span>Others available</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {!currentUser && (
+                                <div className="instructions">
+                                    <strong>Enter your name above</strong> to select times when you're available to meet.
+                                </div>
+                            )}
+                            
+                            {MEETINGS.map(meeting => (
+                                <div key={meeting.id} className="meeting-section">
+                                    <h3 className="meeting-section-header">
+                                        {meeting.name}
+                                        <span className="meeting-date-range">{meeting.dateRange}</span>
+                                    </h3>
+                                    <div className="time-grid">
+                                        {/* Header row */}
+                                        <div className="grid-header time-col">Time</div>
+                                        {meeting.dates.map(d => (
+                                            <div key={d.date} className="grid-header">{d.label}</div>
+                                        ))}
+                                        
+                                        {/* Time rows */}
+                                        {TIME_SLOTS.map(time => (
+                                            <React.Fragment key={time}>
+                                                <div className="time-label">{time}</div>
+                                                {meeting.dates.map(d => {
+                                                    const voted = hasUserVoted(meeting.id, d.date, time);
+                                                    const count = getVoteCount(meeting.id, d.date, time);
+                                                    const hasOtherVotes = count > 0 && !(count === 1 && voted);
+                                                    
+                                                    return (
+                                                        <div
+                                                            key={d.date}
+                                                            className={`time-slot ${voted ? 'selected' : ''} ${hasOtherVotes ? 'has-votes' : ''} ${!currentUser ? 'disabled' : ''}`}
+                                                            onClick={() => currentUser && toggleVote(meeting.id, d.date, time)}
+                                                            title={currentUser ? (voted ? 'Click to remove' : 'Click to select') : 'Enter your name first'}
+                                                        >
+                                                            {count > 0 && <span className="vote-count">{count}</span>}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </React.Fragment>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </section>
+                        
+                        {/* Participants */}
+                        <section className="participants-section">
+                            <h2 className="participants-title">Participants ({data.participants.length})</h2>
+                            {data.participants.length > 0 ? (
+                                <div className="participants-list">
+                                    {data.participants.map(p => (
+                                        <span key={p} className={`participant-chip ${p === currentUser ? 'current' : ''}`}>
+                                            {p}
+                                        </span>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="no-participants">No participants yet. Be the first to submit your availability!</div>
+                            )}
+                        </section>
+                    </main>
+                    
+                    <footer className="footer">
+                        <p>Project 10 | Fisher College of Business | Spring 2026</p>
+                        <p style={{ marginTop: '0.5rem' }}>
+                            Questions? Contact <a href="mailto:mark.oleson@chrr.osu.edu">mark.oleson@chrr.osu.edu</a>
+                        </p>
+                    </footer>
+                </div>
+            );
+        };
+        
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
